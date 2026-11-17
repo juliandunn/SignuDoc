@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="docs/images/banner.png" alt="SignuDoc: e-signatures you actually own. Open source and MIT licensed. Send, sign and seal documents from your own Vercel account, at $0 per seat. Shown: a signer drawing a signature on a consulting agreement, and both signers marked Signed.">
+  <img src="docs/images/banner.png" alt="SignuDoc: e-signatures you actually own. Open source and MIT licensed. Send, sign and seal documents from your own Google Cloud project, at $0 per seat. Shown: a signer drawing a signature on a consulting agreement, and both signers marked Signed.">
 </p>
 
 <p align="center">
-  An e-signature app for your own organization, on your own Vercel account.<br>
+  An e-signature app for your own organization, on your own Google Cloud project.<br>
   Upload a PDF, place fields, send signing links, and keep the sealed, signed copy with its audit certificate.
 </p>
 
 <p align="center">
-  <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FNYLLON-SOFTWARE%2FSignuDoc&project-name=signudoc&repository-name=signudoc&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22resend%22%2C%22productSlug%22%3A%22resend-email%22%2C%22protocol%22%3A%22messaging%22%7D%2C%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%2C%7B%22type%22%3A%22blob%22%2C%22access%22%3A%22private%22%7D%5D&demo-title=SignuDoc&demo-description=Your%20own%20e-signature%20site.%20Upload%20a%20PDF%2C%20place%20fields%2C%20send%20signing%20links%2C%20and%20keep%20the%20signed%20copy%20with%20its%20audit%20certificate.&demo-url=https%3A%2F%2Fgithub.com%2FNYLLON-SOFTWARE%2FSignuDoc&demo-image=https%3A%2F%2Fraw.githubusercontent.com%2FNYLLON-SOFTWARE%2FSignuDoc%2Fmain%2Fdocs%2Fimages%2Fbanner.png"><img src="docs/images/deploy-to-vercel.svg" alt="Deploy to Vercel" height="32"></a><br>
-  <sub>or <a href="docs/deploy-with-an-agent.md">copy this to your LLM</a></sub>
+  <a href="docs/deploy-on-google-cloud.md"><b>Deploy on Google Cloud</b></a><br>
+  <sub>or <a href="docs/deploy-with-an-agent.md">give this to your LLM</a></sub>
 </p>
 
 <p align="center">
@@ -22,15 +22,15 @@
 
 ## Why SignuDoc
 
-**No seats to pay for.** SignuDoc is open source, and the Deploy button sets it up on free plans from Vercel, Neon and Resend, which carry about 250 documents a month for $0. A 15-person team pays DocuSign $8,100 a year for Business Pro seats, or $5,400 for Standard. SignuDoc costs the same whether one person sends or fifty.
+**No seats to pay for.** SignuDoc is open source and runs in your own Google Cloud project, so you pay Google for what runs and nothing per person. A 15-person team pays DocuSign $8,100 a year for Business Pro seats, or $5,400 for Standard. SignuDoc costs the same whether one person sends or fifty.
 
-**No envelope allowance to watch.** DocuSign's Standard and Business Pro plans include 100 envelopes per user per year. SignuDoc has no limit of its own. What you can send depends on your hosting plans, and the free ones carry about 250 documents a month.
+**No envelope allowance to watch.** DocuSign's Standard and Business Pro plans include 100 envelopes per user per year. SignuDoc has no limit of its own: what you can send depends on what you provision and on your email plan.
 
-**Your documents stay in your accounts.** PDFs live in a private Vercel Blob store and everything else in a Neon Postgres database, both in your name and in the region you choose. Nobody else hosts your agreements, and the code is yours to read, change and run.
+**Your documents stay in your accounts.** PDFs live in a private Cloud Storage bucket and everything else in a Cloud SQL Postgres database, both in your project and in the region you choose. Nobody else hosts your agreements, and the code is yours to read, change and run.
 
 **Evidence anyone can check.** Every finished PDF and its audit certificate carry a PAdES seal that PDF readers check for changes, the audit trail is hash-chained so an edited or deleted row shows, and anyone holding a copy can check it on the install's public Verify page.
 
-**One click, nothing to look after.** The Deploy button creates the database, the file store and email for you, on free plans. There are no servers to patch, and every push to your copy deploys again.
+**Basic building blocks.** Cloud Run, Cloud SQL, Cloud Storage, Secret Manager and Cloud Scheduler: nothing exotic to learn, and a guide that lists every command. Google patches the platform, and a deploy is one `gcloud builds submit`.
 
 ## Everything it takes to get a document signed
 
@@ -108,14 +108,14 @@ DocuSign does more, and charges for it per user. SignuDoc does the everyday sign
 
 ### Price and ownership
 
-|                                  | SignuDoc                                                         | DocuSign eSignature                                                                      |
-| -------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| **Price**                        | Free and open source, on free plans from Vercel, Neon and Resend | $11 (Personal), $30 (Standard) or $45 (Business Pro) per user a month, on an annual plan |
-| **Envelopes**                    | No limit of its own. The free plans carry about 250 a month      | 5 a month on Personal, 100 per user a year on Standard and Business Pro                  |
-| **Where it runs**                | Your Vercel account, with your Neon database and Blob store      | DocuSign's cloud                                                                         |
-| **Where data is kept**           | The region you choose, the EU included                           | DocuSign's data centers, the EU included                                                 |
-| **Source code**                  | MIT license, on GitHub                                           | Closed                                                                                   |
-| **Your own domain and branding** | ✅ your domain, logo and color, in every install                 | Logo and colors from Standard                                                            |
+|                                  | SignuDoc                                                                         | DocuSign eSignature                                                                      |
+| -------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Price**                        | Free and open source; you pay Google for what runs and Resend for email          | $11 (Personal), $30 (Standard) or $45 (Business Pro) per user a month, on an annual plan |
+| **Envelopes**                    | No limit of its own                                                              | 5 a month on Personal, 100 per user a year on Standard and Business Pro                  |
+| **Where it runs**                | Your Google Cloud project, with your Cloud SQL database and Cloud Storage bucket | DocuSign's cloud                                                                         |
+| **Where data is kept**           | The region you choose, the EU included                                           | DocuSign's data centers, the EU included                                                 |
+| **Source code**                  | MIT license, on GitHub                                                           | Closed                                                                                   |
+| **Your own domain and branding** | ✅ your domain, logo and color, in every install                                 | Logo and colors from Standard                                                            |
 
 ### The signing loop
 
@@ -153,58 +153,33 @@ If your agreements run through Salesforce, need SMS checks or ID document checks
 
 ## What it costs
 
-SignuDoc is free, and the Deploy button puts it on free plans from Vercel, Neon and Resend. Those plans carry about **250 documents a month**, however many people send them, before anything costs money. That is the first row below, and the rows after it are what you pay once you pass it.
+SignuDoc is free. You pay Google Cloud for what your install uses, and [Resend](https://resend.com/pricing) for email (it has a free plan). There are no seats and no envelope allowance, so the cost follows your usage, not your headcount:
 
-| Documents sent in a year                                       | SignuDoc                                      | DocuSign Standard     | DocuSign Business Pro |
-| -------------------------------------------------------------- | --------------------------------------------- | --------------------- | --------------------- |
-| **3,000**: 250 a month, the most the free plans carry          | **$0**                                        | $10,800, for 30 seats | $16,200, for 30 seats |
-| **5,000**: the most DocuSign's listed plans include            | $240, for Vercel Pro                          | $18,000, for 50 seats | $27,000, for 50 seats |
-| **7,200**: 600 a month, the most Resend's free plan will email | $240                                          | Quoted by sales       | Quoted by sales       |
-| **More than that**                                             | $480, for Vercel Pro and Resend Pro, plus use | Quoted by sales       | Quoted by sales       |
+- **Cloud SQL** is the one cost that runs all day, because the database is billed for its size whether or not anyone is signing. The tier you pick sets the floor.
+- **Cloud Run** is billed for the time the app is up, and scales to zero when nobody is using it.
+- **Cloud Storage, Artifact Registry, Secret Manager, Cloud Scheduler and Cloud Build** cost little at this scale.
 
-DocuSign includes 100 envelopes per user a year, so its price for a number of documents is the seats it takes to send them. SignuDoc has no seats. A team of 15, for example:
+Work out your own figure in the [Google Cloud pricing calculator](https://cloud.google.com/products/calculator), and set a [budget alert](https://cloud.google.com/billing/docs/how-to/budgets). [What it costs](docs/deploy-on-google-cloud.md#what-it-costs) in the deploy guide says more.
 
-<p align="center">
-  <img src="docs/images/price.png" alt="15 people, one year. DocuSign Business Pro: 15 seats at $45 a month each is $8,100 a year, with 1,500 envelopes included, and person 16 adds $540 a year. On DocuSign Standard, at $30 a seat, the same team pays $5,400 a year and goes without dropdown and radio fields. SignuDoc: $0 a year, about 250 documents a month on the free plans, and person 16 adds $0. It runs on the free plans of Vercel, Neon and Resend. Vercel keeps its free plan for personal, non-commercial use: a company on Vercel Pro pays $20 a month, whatever its size. That team keeps $8,100 a year, or $7,860 on Vercel Pro.">
-</p>
-
-### Where the $0 limit comes from
-
-Each free plan has its own monthly allowance, and the smallest one sets the limit:
-
-|                                                                                    | The free plan allows                        | Which carries                                                                                                                                                                                                              |
-| ---------------------------------------------------------------------------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Files**, on [Vercel Blob](https://vercel.com/docs/vercel-blob/usage-and-pricing) | 2,000 uploads, 10,000 reads and 1 GB stored | **About 250 documents a month.** A two-signer document takes 7 to 9 uploads, from the first PDF to the sealed copy and its certificates, and about 20 reads. 1 GB keeps over 1,000 finished documents of a few pages each. |
-| **Email**, on [Resend](https://resend.com/pricing)                                 | 3,000 emails, and no more than 100 a day    | 600 two-signer documents a month, and 20 in one day. Each takes five emails: two invitations and three finished copies. Reminders and one-time codes are emails too.                                                       |
-| **Database**, on [Neon](https://neon.com/faqs/free-plan-limits-and-quotas)         | 1 GB and 100 compute hours                  | About 400 hours a month with the database awake. It sleeps when nobody is using the site.                                                                                                                                  |
-| **Hosting**, on Vercel Hobby                                                       | More than the rows above will use           | Any number of people. Vercel [limits Hobby to personal, non-commercial use](https://vercel.com/docs/limits/fair-use-guidelines).                                                                                           |
-
-None of these plans bills you for going over. It stops instead: files cannot be read, email is not sent, or the database pauses. The monthly allowances come back when the month turns over. The two 1 GB limits do not, because stored files and database rows stay until they are deleted: make room by deleting old documents, or by setting how long finished documents are kept under Settings, Organization. Better still, move up before you reach a limit, not after.
-
-### Past the free plans
-
-- **Vercel Pro is $20 a month** for the one person who deploys, whatever the size of the team. The people who send and sign need no Vercel seat. It lifts the file limits: Blob is then paid from the plan's $20 monthly credit, at $0.023 per GB a month. A company belongs on [Pro](https://vercel.com/docs/plans/pro-plan) from the start, because of Vercel's rule for Hobby.
-- **Resend Pro is $20 a month** for 50,000 emails, with no daily limit.
-- **Neon's Launch plan** charges for what the database uses, with no monthly minimum.
-- **Your own domain**, if you want one, costs whatever your registrar charges. Vercel Pro includes one free for the first year.
-
-DocuSign's figures are its US list prices for annual plans in November 2026: $30 a user a month on Standard and $45 on Business Pro. Those plans stop at 50 users, and larger ones are quoted. The document counts are estimates for two signers and PDFs of a few pages; more signers, longer documents and reminders use more. Prices and free plans change, so check them before you quote these.
+For comparison, DocuSign's US list prices for annual plans in November 2026 are $30 a user a month on Standard and $45 on Business Pro, with 100 envelopes per user a year included. A team of 15 pays $5,400 or $8,100 a year before it sends its first document over the allowance, and those plans stop at 50 users; larger ones are quoted. Prices change, so check them before you quote these.
 
 ## Get started
 
-### Deploy to Vercel
+### Deploy to Google Cloud
 
-1. **Click Deploy to Vercel** above, and sign in to Vercel. It copies SignuDoc into your GitHub account and builds your site from that copy.
-2. **Add the three things Vercel offers to create**, each on a free plan: [Resend](https://resend.com) for email, a [Neon](https://neon.com) Postgres database, and a private [Vercel Blob](https://vercel.com/docs/vercel-blob) store.
-3. **Click Deploy.** The build creates the database tables by itself. If Vercel stops with "One or more integration resources failed to provision", nothing is wrong with your copy: Resend was still checking its domain. Wait a minute or two, refresh the page, and click **Redeploy**. See [If the first deployment fails](docs/self-hosting.md#if-the-first-deployment-fails).
+You need a Google Cloud project with billing on, the `gcloud` CLI, and a [Resend](https://resend.com) API key. The full guide is [Deploy SignuDoc on Google Cloud](docs/deploy-on-google-cloud.md); in outline:
+
+1. **Create the pieces:** a service account, a Cloud SQL Postgres database, a private Cloud Storage bucket, and secrets for the database URL, the session key and your Resend key.
+2. **Create the Cloud Run service and a migration job.**
+3. **Build and deploy** from this repository: `gcloud builds submit --config deploy/gcp/cloudbuild.yaml`. It builds the image, creates the database tables and deploys.
 4. **Open your new site.** Name your organization, give the email address people should write to for help, and create the first account, which is the administrator.
-5. **Set up the address you send from.** Under Settings, Organization, enter an address at your own domain. The site lists the DNS records to add and checks them for you.
+5. **Schedule the daily cleanup and backup** with Cloud Scheduler, and **set up the address you send from** under Settings, Organization.
 
-**Taking new versions.** Settings, SignuDoc, **Check for updates** tells you when a new release is out and what is in it. A workflow that comes with your copy then opens a pull request with the release in your GitHub repository; merge it and Vercel deploys the update. See [Keep your install up to date](docs/self-hosting.md#keep-your-install-up-to-date).
+**Taking new versions.** Settings, SignuDoc, **Check for updates** tells you when a new release is out and what is in it. Merge it into your copy and run the build again. See [Keep it up to date](docs/deploy-on-google-cloud.md#keep-it-up-to-date).
 
-**Deploying with an AI agent.** An agent that can use your browser can do all of this for you. Point it at [docs/deploy-with-an-agent.md](docs/deploy-with-an-agent.md), which lists every screen, what to choose, what to ask you, and how to retry.
+**Deploying with an AI agent.** An agent with `gcloud` can do this for you. Point it at [docs/deploy-with-an-agent.md](docs/deploy-with-an-agent.md), which lists what to ask you, what to check after each part, and when to stop.
 
-There is nothing to type in Vercel and no terminal to open. Until step 5 is done, email reaches only the address on your Resend account, so you can try the whole product straight away by sending a document to yourself. The [self-hosting guide](docs/self-hosting.md) covers your own domain, locking down a new install, keeping it up to date, running in the EU, and every optional setting.
+Until the sending address is verified, email reaches only the address on your Resend account, so you can try the whole product straight away by sending a document to yourself. The [self-hosting guide](docs/self-hosting.md) covers locking down a new install, running in the EU, the seal, and every optional setting. SignuDoc can also still be deployed to Vercel; that path is described there.
 
 ### Try it on your computer
 
@@ -219,9 +194,9 @@ npm run dev        # SignuDoc at http://localhost:3000
 
 Files stay on disk and emails are written to `.data/outbox` instead of being sent, so you need no outside account. [Development](docs/development.md) says more.
 
-## Built on Vercel
+## Built on Google Cloud
 
-- **Vercel-native from end to end.** Next.js 16 on Vercel Functions, Neon Postgres and Resend from the Vercel Marketplace, private Vercel Blob storage with direct browser uploads, a daily Vercel cron job for reminders and cleanup, and optional [Vercel BotID](https://vercel.com/docs/botid).
+- **Built from basic Google Cloud services.** Next.js 16 in a container on Cloud Run, Cloud SQL Postgres, private Cloud Storage, Secret Manager, a daily Cloud Scheduler call for reminders and cleanup, and Resend for email.
 - **Secure by default.** Private file storage with no public URLs, a strict Content Security Policy, rate limits kept in Postgres, signing links that are hashed at rest, and a setup page that only the first visitor, or the holder of a `SETUP_TOKEN`, can use.
 - **Tested.** Unit tests, database tests against a real Postgres, and a browser test that sets up a fresh install, sends a document and signs it, run on every pull request.
 
@@ -243,7 +218,8 @@ Your install carries your organization's name, and your organization is responsi
 
 ## Learn more
 
-- [Self-hosting guide](docs/self-hosting.md): deploying, first-run setup, what it costs, your own domain, updates, the EU, the seal, cleanup, rate limits, bot protection and every optional setting.
+- [Deploy on Google Cloud](docs/deploy-on-google-cloud.md): every command, from an empty project to a running site, with backups.
+- [Self-hosting guide](docs/self-hosting.md): deploying, first-run setup, your own domain, updates, the EU, the seal, cleanup, rate limits and every optional setting.
 - [Development](docs/development.md): running SignuDoc locally, storage, the database, email, tests and the code's layout.
 - [Contributing](CONTRIBUTING.md) and [Security](SECURITY.md).
 

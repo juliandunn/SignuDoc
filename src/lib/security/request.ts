@@ -5,6 +5,24 @@ function firstAddress(value: string | null): string | null {
 }
 
 /**
+ * On Cloud Run, Google's front end appends the address it saw to
+ * x-forwarded-for, after anything the visitor sent, so the first entry can
+ * be forged and the last one cannot. A Google Cloud load balancer in front
+ * of the service adds its own address after that: set TRUSTED_PROXY_HOPS=1
+ * to step over it.
+ * https://cloud.google.com/run/docs/reference/container-contract#request-headers
+ */
+function cloudRunAddress(value: string | null, env: IpEnv): string | null {
+  const entries = (value ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const hops = Number.parseInt(env.TRUSTED_PROXY_HOPS ?? "0", 10);
+
+  return entries[entries.length - 1 - (hops > 0 ? hops : 0)] ?? null;
+}
+
+/**
  * The headers that carry the visitor's address, most trustworthy first.
  *
  * On Vercel, x-vercel-forwarded-for and x-real-ip are written by Vercel
@@ -15,6 +33,10 @@ function firstAddress(value: string | null): string | null {
  * them, so the usual proxy headers are used instead.
  */
 export function getClientIpHeaderNames(env: IpEnv = process.env): string[] {
+  if (env.K_SERVICE) {
+    return ["x-forwarded-for"];
+  }
+
   return env.VERCEL === "1"
     ? ["x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"]
     : ["x-forwarded-for", "cf-connecting-ip", "x-real-ip"];
@@ -25,7 +47,9 @@ export function getClientIpAddress(
   env: IpEnv = process.env,
 ): string | null {
   for (const name of getClientIpHeaderNames(env)) {
-    const address = firstAddress(headers.get(name));
+    const address = env.K_SERVICE
+      ? cloudRunAddress(headers.get(name), env)
+      : firstAddress(headers.get(name));
 
     if (address) {
       return address;

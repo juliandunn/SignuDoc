@@ -2,8 +2,14 @@
 // a new, empty database and Blob store. See docs/backup-and-restore.md.
 //
 //   DATABASE_URL=postgres://...            the new, empty database
+//
+// and, on Vercel Blob:
 //   BLOB_READ_WRITE_TOKEN=vercel_blob_rw_  the new install's Blob store
 //   BACKUP_BLOB_READ_WRITE_TOKEN=...       the backup store
+//
+// or, on Google Cloud Storage (signed in with gcloud auth application-default login):
+//   GCS_BUCKET=...                         the new install's bucket
+//   BACKUP_GCS_BUCKET=...                  the backup bucket
 //
 //   npm run restore-backup -- --list            list the database backups
 //   npm run restore-backup                      restore the newest one, and the files
@@ -17,7 +23,9 @@
 
 import pg from "pg";
 
+import { createGcsBackupStore } from "../src/lib/backup-gcs.ts";
 import {
+  type BackupStore,
   createVercelBlobStore,
   DATABASE_PREFIX,
   findLatestDatabaseBackup,
@@ -43,10 +51,22 @@ function requireVariable(name: string): string {
   return value;
 }
 
+const onGcs = Boolean(process.env.BACKUP_GCS_BUCKET?.trim());
+
+function openBackupStore(): BackupStore {
+  return onGcs
+    ? createGcsBackupStore(requireVariable("BACKUP_GCS_BUCKET"))
+    : createVercelBlobStore(requireVariable("BACKUP_BLOB_READ_WRITE_TOKEN"));
+}
+
+function openAppStore(): BackupStore {
+  return onGcs
+    ? createGcsBackupStore(requireVariable("GCS_BUCKET"))
+    : createVercelBlobStore(requireVariable("BLOB_READ_WRITE_TOKEN"));
+}
+
 async function main() {
-  const backupStore = createVercelBlobStore(
-    requireVariable("BACKUP_BLOB_READ_WRITE_TOKEN"),
-  );
+  const backupStore = openBackupStore();
 
   if (process.argv.includes("--list")) {
     let cursor: string | undefined;
@@ -74,9 +94,7 @@ async function main() {
     process.exit(1);
   }
 
-  const appStore = skipFiles
-    ? null
-    : createVercelBlobStore(requireVariable("BLOB_READ_WRITE_TOKEN"));
+  const appStore = skipFiles ? null : openAppStore();
 
   if (!filesOnly) {
     const connectionString = requireVariable("DATABASE_URL");

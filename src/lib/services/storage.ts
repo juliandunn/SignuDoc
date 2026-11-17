@@ -1,5 +1,6 @@
 import { type EnvSource } from "../utils/env.ts";
 import { createBlobStorageService } from "./storage/blob.ts";
+import { createGcsStorageService } from "./storage/gcs.ts";
 import { resolveStorageDriver } from "./storage/driver.ts";
 import { createLocalStorageService } from "./storage/local.ts";
 import { type StorageService } from "./storage/types.ts";
@@ -49,6 +50,8 @@ export function createStorageService({
   switch (resolveStorageDriver(env)) {
     case "blob":
       return createBlobStorageService({ env });
+    case "gcs":
+      return createGcsStorageService({ env });
     case "local":
       return createLocalStorageService({ env });
   }

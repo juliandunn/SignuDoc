@@ -113,6 +113,15 @@ export function createVercelBlobStore(token?: string): BackupStore {
 
 export type BackupSettings = { keepDays: number; token: string };
 
+/** BACKUP_KEEP_DAYS, or the default when it is unset or out of range. */
+export function readKeepDays(env: EnvSource = process.env): number {
+  const keepDays = Number.parseInt(readEnv(env, "BACKUP_KEEP_DAYS") ?? "", 10);
+
+  return Number.isFinite(keepDays) && keepDays >= 1 && keepDays <= 3650
+    ? keepDays
+    : DEFAULT_KEEP_DAYS;
+}
+
 /** The backup settings, or null when backups are not set up. */
 export function readBackupSettings(
   env: EnvSource = process.env,
@@ -123,15 +132,7 @@ export function readBackupSettings(
     return null;
   }
 
-  const keepDays = Number.parseInt(readEnv(env, "BACKUP_KEEP_DAYS") ?? "", 10);
-
-  return {
-    keepDays:
-      Number.isFinite(keepDays) && keepDays >= 1 && keepDays <= 3650
-        ? keepDays
-        : DEFAULT_KEEP_DAYS,
-    token,
-  };
+  return { keepDays: readKeepDays(env), token };
 }
 
 /** The store id inside a Blob read-write token, when it has one. */

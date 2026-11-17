@@ -1,0 +1,71 @@
+# Builds the image, applies new database migrations, and deploys the new
+# revision. Run it from the repository root:
+#
+#   gcloud builds submit --config deploy/gcp/cloudbuild.yaml \
+#     --substitutions _REGION=us-central1
+#
+# or point a Cloud Build trigger at this file to deploy on every push.
+# docs/deploy-on-google-cloud.md creates everything this refers to.
+substitutions:
+  _REGION: us-central1
+  _REPOSITORY: signudoc
+  _SERVICE: signudoc
+  _MIGRATE_JOB: signudoc-migrate
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/signudoc:$BUILD_ID
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/signudoc:latest
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/signudoc
+
+  # Migrations first: they only add to the schema, so the revision still
+  # serving traffic keeps working while they run, and the new one starts
+  # against a database it understands.
+  - id: migrate
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - update
+      - ${_MIGRATE_JOB}
+      - --region=${_REGION}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/signudoc:$BUILD_ID
+
+  - id: run-migrations
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - execute
+      - ${_MIGRATE_JOB}
+      - --region=${_REGION}
+      - --wait
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --region=${_REGION}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/signudoc:$BUILD_ID
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/signudoc:$BUILD_ID
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/signudoc:latest

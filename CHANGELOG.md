@@ -43,6 +43,22 @@ This changes the database: the new `api_keys`, `api_idempotency`,
 `webhook_endpoints`, `webhook_deliveries` and `embed_allowed_origins`
 tables and six new columns are added by the migrations that run on deploy.
 
+### Deployment
+
+- Deploy on Google Cloud with basic services: Cloud Run, Cloud SQL for
+  Postgres, Cloud Storage, Secret Manager and Cloud Scheduler. The new guide
+  is `docs/deploy-on-google-cloud.md`, with a `Dockerfile` and
+  `deploy/gcp/cloudbuild.yaml` that build the image, run the migrations as a
+  Cloud Run job and deploy.
+- A Cloud Storage file driver, chosen by setting `GCS_BUCKET`, and a daily
+  backup to a second bucket, chosen by setting `BACKUP_GCS_BUCKET`.
+  `npm run restore-backup` restores from either kind.
+- On Cloud Run, the visitor's address for rate limits is the one Google
+  appended to `x-forwarded-for`, which a visitor cannot forge.
+  `TRUSTED_PROXY_HOPS=1` is for a load balancer in front.
+- The README's Deploy to Vercel button and its test are gone from this
+  branch; the Vercel steps remain in `docs/self-hosting.md`.
+
 ## [0.5.2] - 2026-11-19
 
 Twenty-four bug fixes. Seventeen fix reported issues (sixteen from @coygeek,

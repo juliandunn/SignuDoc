@@ -2,7 +2,8 @@
 
 Everything about running your own SignuDoc: deploying it, setting it up, what it costs, keeping it up to date, and the settings you can change. For working on the code, see [Development](development.md).
 
-- [Deploy to Vercel](#deploy-to-vercel)
+- [Deploy to Google Cloud](#deploy-to-google-cloud)
+- [Deploy to Vercel instead](#deploy-to-vercel-instead)
 - [Set the site up](#set-the-site-up)
 - [Your responsibilities](#your-responsibilities)
 - [Signed PDFs and the seal](#signed-pdfs-and-the-seal)
@@ -13,7 +14,21 @@ Everything about running your own SignuDoc: deploying it, setting it up, what it
 - [Hosted mode](#hosted-mode)
 - [Self-hosting somewhere else](#self-hosting-somewhere-else)
 
-## Deploy to Vercel
+## Deploy to Google Cloud
+
+SignuDoc runs on Cloud Run, with Cloud SQL for Postgres, a private Cloud Storage bucket, Secret Manager and Cloud Scheduler, all in a project of yours. [Deploy SignuDoc on Google Cloud](deploy-on-google-cloud.md) has every command, in order. An AI agent with `gcloud` can follow [Deploying with an agent](deploy-with-an-agent.md).
+
+In short: you create the service accounts, database, bucket and secrets, then `gcloud builds submit --config deploy/gcp/cloudbuild.yaml` builds the image, applies the migrations in a Cloud Run job and deploys it. Open the new site and it takes you to a setup page, where you name your organization, give the email address people should write to for help, and create the first account. That account is the administrator.
+
+- **Your own web address:** map a domain to the service (or put a load balancer in front) and set `APP_URL`. See [section 10 of the guide](deploy-on-google-cloud.md#10-your-own-domain-and-your-own-email-address).
+- **Lock down a new install:** a new install is claimed by whoever opens it first, normally you, seconds after the deploy. If its address will be known to others before you get there, add a `SETUP_TOKEN` secret to the service: the setup page then asks for it, and finding the URL first is not enough.
+- **Keep it up to date:** merge each release into your copy and run the build again. See [Keep it up to date](deploy-on-google-cloud.md#keep-it-up-to-date).
+- **What it costs:** Cloud SQL is the steady cost; the rest is small and billed by use. See [What it costs](deploy-on-google-cloud.md#what-it-costs).
+- **Settings:** the service reads them from its environment. See [Settings](deploy-on-google-cloud.md#settings).
+
+## Deploy to Vercel instead
+
+This section and the three after it describe the other way to run SignuDoc, from the Deploy to Vercel button, with Neon and Vercel Blob. Nothing in them applies to a Google Cloud install.
 
 1. **Click "Deploy to Vercel"** in the [README](../README.md).
 2. **Sign in to Vercel** and let it copy this repository into your GitHub account. Your site is built from that copy.
@@ -290,6 +305,8 @@ Whether a document needs an advanced or a qualified signature, and whether a giv
 
 ## Running in the EU
 
+On Google Cloud, choose an EU region in step 1 of the [deploy guide](deploy-on-google-cloud.md#1-choose-names-and-turn-on-the-services), such as `europe-west4` (Netherlands) or `europe-west3` (Frankfurt), and everything (Cloud Run, Cloud SQL, the bucket, the backup bucket) is created there. Set `RESEND_REGION=eu-west-1` before you add your domain in Settings, and accept Google's and Resend's data processing agreements. The rest of this section is for a Vercel install.
+
 By default the parts of an install run in the US. To keep signers' data in the EU:
 
 1. **Functions.** Add `"regions": ["fra1"]` to `vercel.json` (or pick Frankfurt under Settings, Functions in the Vercel project).
@@ -302,7 +319,7 @@ Some data still leaves the EU: Vercel's and Resend's account metadata and logs, 
 
 ## Backups
 
-Turn on the daily backup to a second Blob store, and learn the restore steps, in [Backup and restore](backup-and-restore.md).
+Turn on the daily backup to a second Blob store or Cloud Storage bucket, and learn the restore steps, in [Backup and restore](backup-and-restore.md).
 
 ## Daily cleanup
 
@@ -313,6 +330,7 @@ Once a day the app deletes drafts nobody has touched for 30 days, finishes accou
 ```
 
 - **On Vercel** this is already scheduled: `vercel.json` has a cron job that calls it once a day. There is nothing to set up.
+- **On Google Cloud**, a Cloud Scheduler job calls it once a day with `RETENTION_JOB_SECRET` as the bearer token ([section 8 of the deploy guide](deploy-on-google-cloud.md#8-schedule-the-daily-jobs)).
 - **Anywhere else**, have your own scheduler send it a `GET` or `POST` once a day.
 
 A new install has no secret for this route, so the route looks after itself: it runs at most once an hour, never twice at the same time, and answers with an empty response either way. Someone who finds the URL can only make the day's cleanup happen earlier.
@@ -329,6 +347,8 @@ Sign-in, sign-up, password reset, the signing pages, uploads and sending are rat
 ## Bot protection
 
 The app can use [Vercel BotID](https://vercel.com/docs/botid), an invisible check that a request comes from a real browser, on the requests a script would go for: creating an account, signing in, asking for a password reset or verification email, the contact form and first-run setup.
+
+BotID works only on Vercel; on Google Cloud the setting does nothing, and the rate limits (kept in Postgres) are what slows a script down. Put Cloud Armor in front of the service if you need more.
 
 It is off by default. To turn it on, set `BOTID=1` on a Vercel deployment and redeploy; the setting is read when the app is built. BotID's basic check is free on every Vercel plan, and its deeper check is a paid option you switch on in the Vercel dashboard. It does nothing anywhere other than Vercel.
 
@@ -348,13 +368,13 @@ npm run build
 npm run start
 ```
 
-Away from Vercel, a few things Vercel does for you are yours to set:
+Away from Vercel, a few things Vercel does for you are yours to set (on Google Cloud, the [deploy guide](deploy-on-google-cloud.md) sets them all):
 
 - `DATABASE_URL`, pointing at your Postgres. Run `npm run db:migrate` on every deploy; it only applies what is new.
 - `APP_URL`, the site's public HTTPS address.
 - `BETTER_AUTH_SECRET`, at least 32 characters (`openssl rand -hex 32`). Without it a secret is derived from the database password, which must then be at least 12 characters long.
 - `RESEND_API_KEY`, from your Resend account.
-- Files are kept on the machine's disk under `.data/storage` (`STORAGE_LOCAL_DIR` changes where), so that disk must survive restarts. To use a Vercel Blob store from elsewhere, set `BLOB_READ_WRITE_TOKEN`.
+- Files are kept on the machine's disk under `.data/storage` (`STORAGE_LOCAL_DIR` changes where), so that disk must survive restarts. To use a Cloud Storage bucket, set `GCS_BUCKET`; the client uses the machine's Google credentials. To use a Vercel Blob store from elsewhere, set `BLOB_READ_WRITE_TOKEN`.
 - Leave `EMAIL_DRIVER` unset. The capture driver is for development only.
 
 Self-hosted operators are responsible for:

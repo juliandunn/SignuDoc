@@ -1,23 +1,31 @@
 import { NextResponse } from "next/server";
 
 import {
+  type BackupStore,
   createVercelBlobStore,
   isBackupStoreTheAppStore,
   readBackupSettings,
   runBackup,
 } from "@/lib/backup";
+import {
+  createGcsBackupStore,
+  isBackupBucketTheAppBucket,
+  readGcsBackupSettings,
+} from "@/lib/backup-gcs";
 import { consumeRateLimit } from "@/lib/security/rate-limit";
 import { identifyRetentionCaller } from "@/lib/retention-job";
 import { logRouteError, logSecurityEvent } from "@/lib/security/logging";
 import { getClientIpAddress, getRequestPathname } from "@/lib/security/request";
 import { resolveStorageDriver } from "@/lib/services/storage/driver";
 
-// The daily backup to a second Blob store (src/lib/backup.ts), called by
-// Vercel's cron job (vercel.json). It does nothing until
-// BACKUP_BLOB_READ_WRITE_TOKEN is set.
+// The daily backup to a second Blob store or GCS bucket (src/lib/backup.ts),
+// called by a daily scheduler (Vercel's cron job in vercel.json, or Cloud
+// Scheduler). It does nothing until BACKUP_BLOB_READ_WRITE_TOKEN (Vercel
+// Blob) or BACKUP_GCS_BUCKET (Google Cloud Storage) is set.
 //
 // Callers are trusted the same way as the daily cleanup's: with CRON_SECRET
-// set, only Vercel's own call gets in. Without it, anyone may call, and a
+// or RETENTION_JOB_SECRET set, only a caller that sends it gets in. Without
+// one, anyone may call, and a
 // run happens at most once in 20 hours whoever asks, which is the most an
 // outside caller can make it cost.
 
@@ -27,6 +35,41 @@ const ANONYMOUS_RUN_INTERVAL_MS = 20 * 60 * 60 * 1000;
 /** Leaves time to write the summary before the function is stopped. */
 const COPY_BUDGET_MS = 240_000;
 
+type BackupPlan = {
+  appStoreIsBackupStore: boolean;
+  keepDays: number;
+  source: BackupStore;
+  target: BackupStore;
+};
+
+function resolveBackupPlan(): BackupPlan | null {
+  const driver = resolveStorageDriver();
+
+  if (driver === "gcs") {
+    const settings = readGcsBackupSettings();
+
+    return settings
+      ? {
+          appStoreIsBackupStore: isBackupBucketTheAppBucket(settings),
+          keepDays: settings.keepDays,
+          source: createGcsBackupStore(process.env.GCS_BUCKET?.trim() ?? ""),
+          target: createGcsBackupStore(settings.bucket),
+        }
+      : null;
+  }
+
+  const settings = readBackupSettings();
+
+  return driver === "blob" && settings
+    ? {
+        appStoreIsBackupStore: isBackupStoreTheAppStore(settings),
+        keepDays: settings.keepDays,
+        source: createVercelBlobStore(),
+        target: createVercelBlobStore(settings.token),
+      }
+    : null;
+}
+
 async function handle(request: Request) {
   const startedAt = Date.now();
   const caller = identifyRetentionCaller(request.headers.get("authorization"));
@@ -35,19 +78,19 @@ async function handle(request: Request) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
-  const settings = readBackupSettings();
+  const plan = resolveBackupPlan();
 
-  if (!settings || resolveStorageDriver() !== "blob") {
+  if (!plan) {
     return caller === "authorized"
       ? NextResponse.json({ status: "not_configured" })
       : new NextResponse(null, { status: 204 });
   }
 
-  if (isBackupStoreTheAppStore(settings)) {
+  if (plan.appStoreIsBackupStore) {
     logSecurityEvent("error", {
       category: "backup_misconfigured",
       message:
-        "BACKUP_BLOB_READ_WRITE_TOKEN is for the app's own Blob store. Make a second store for backups and use its token.",
+        "The backup store is the app's own. Make a second store or bucket for backups and use that.",
       path: getRequestPathname(request),
     });
 
@@ -72,9 +115,9 @@ async function handle(request: Request) {
   try {
     const summary = await runBackup({
       deadline: startedAt + COPY_BUDGET_MS,
-      keepDays: settings.keepDays,
-      source: createVercelBlobStore(),
-      target: createVercelBlobStore(settings.token),
+      keepDays: plan.keepDays,
+      source: plan.source,
+      target: plan.target,
     });
     const failed = summary.fileFailures.length > 0;
 

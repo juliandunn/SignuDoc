@@ -56,7 +56,7 @@ The first time you open the app it takes you to `/setup`, where you name the org
 - React + TypeScript
 - Better Auth
 - Postgres (`pg`)
-- Vercel Blob object storage (local disk in development)
+- Google Cloud Storage or Vercel Blob object storage (local disk in development)
 - Resend for transactional email
 - `pdf-lib` and `pdfjs-dist`
 - Tailwind CSS 4 + shadcn/ui
@@ -77,12 +77,13 @@ A document you send often can be kept as a template: open any envelope, sent or 
 
 ## Storage
 
-Documents, signed PDFs, audit certificates, drawn signature images, and the small first-page pictures shown on the dashboard are stored in one of two places:
+Documents, signed PDFs, audit certificates, drawn signature images, and the small first-page pictures shown on the dashboard are stored in one of three places:
 
 - **Vercel Blob**, in a private store. This is used whenever a Blob store is connected to the project (Vercel sets `BLOB_READ_WRITE_TOKEN`, or `BLOB_STORE_ID` for a store that signs in with the project's OIDC token), and always on Vercel. Nothing in the store has a public URL; every download goes through the app, which checks who is asking first.
+- **Google Cloud Storage**, in a private bucket. This is used whenever `GCS_BUCKET` is set. The client signs in with Application Default Credentials: the service account on Cloud Run, or `gcloud auth application-default login` on a laptop. Uploads go through the app, which Cloud Run allows up to 32 MiB, above the 20 MiB upload limit.
 - **Local disk**, under `.data/storage` (change it with `STORAGE_LOCAL_DIR`). This is the default everywhere else, including local development.
 
-`STORAGE_DRIVER=blob` or `STORAGE_DRIVER=local` overrides the choice.
+`STORAGE_DRIVER=blob`, `gcs` or `local` overrides the choice.
 
 On Vercel Blob, the upload page sends the PDF straight from the browser to the store with a short-lived signed URL, because a request to a Vercel Function cannot be larger than 4.5 MB. The upload lands in a pending folder, the app reads it back and validates it like any other upload, stores its own copy, and deletes the pending one. A pending upload that is never picked up is deleted by Blob after a day.
 
@@ -94,7 +95,7 @@ E2E_STORAGE_DRIVER=blob BLOB_READ_WRITE_TOKEN=... npm run test:e2e
 
 ## Database
 
-SignuDoc uses Postgres as its only database and talks to it with `pg`. Any Postgres 15 or newer works, including Neon and Supabase.
+SignuDoc uses Postgres as its only database and talks to it with `pg`. Any Postgres 15 or newer works, including Cloud SQL, Neon and Supabase.
 
 The schema lives in `db/migrations` as plain SQL files. `npm run db:migrate` applies the ones that have not run yet and records them in the `signudoc_migrations` table, so it is safe to run on every deploy.
 

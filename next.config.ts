@@ -11,6 +11,9 @@ const { version } = JSON.parse(readFileSync("./package.json", "utf8")) as {
 };
 
 const nextConfig: NextConfig = {
+  // The container image (Dockerfile) runs the minimal server Next.js writes
+  // to .next/standalone. Vercel builds its own way and must not get it.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   env: {
     NEXT_PUBLIC_SIGNUDOC_VERSION: version,
     // Whether Vercel BotID is on, decided once at build time so the browser

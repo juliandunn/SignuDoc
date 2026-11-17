@@ -52,6 +52,34 @@ test("off Vercel, Vercel's header means nothing and the proxy headers are used",
   );
 });
 
+test("on Cloud Run, the address Google appended is the last one, not a forged first one", () => {
+  const onCloudRun = { K_SERVICE: "signudoc" };
+  const headers = new Headers({
+    "cf-connecting-ip": "198.51.100.9",
+    "x-forwarded-for": "192.0.2.1, 203.0.113.5",
+    "x-real-ip": "198.51.100.8",
+  });
+
+  assert.equal(getClientIpAddress(headers, onCloudRun), "203.0.113.5");
+  assert.deepEqual(getClientIpHeaderNames(onCloudRun), ["x-forwarded-for"]);
+});
+
+test("behind a Google load balancer, TRUSTED_PROXY_HOPS steps over its address", () => {
+  const behindBalancer = { K_SERVICE: "signudoc", TRUSTED_PROXY_HOPS: "1" };
+  const headers = new Headers({
+    "x-forwarded-for": "192.0.2.1, 203.0.113.5, 35.191.0.1",
+  });
+
+  assert.equal(getClientIpAddress(headers, behindBalancer), "203.0.113.5");
+  assert.equal(
+    getClientIpAddress(new Headers({ "x-forwarded-for": "35.191.0.1" }), {
+      ...behindBalancer,
+      TRUSTED_PROXY_HOPS: "5",
+    }),
+    null,
+  );
+});
+
 test("an empty header is passed over, and no header at all gives no address", () => {
   assert.equal(
     getClientIpAddress(
