@@ -16,14 +16,14 @@ Everything about running your own SignuDoc: deploying it, setting it up, what it
 
 ## Deploy to Google Cloud
 
-SignuDoc runs on Cloud Run, with Cloud SQL for Postgres, a private Cloud Storage bucket, Secret Manager and Cloud Scheduler, all in a project of yours. [Deploy SignuDoc on Google Cloud](deploy-on-google-cloud.md) has every command, in order. An AI agent with `gcloud` can follow [Deploying with an agent](deploy-with-an-agent.md).
+SignuDoc runs on Cloud Run, with a Neon Postgres database, a private Cloud Storage bucket, Secret Manager and Cloud Scheduler. [Deploy SignuDoc on Google Cloud](deploy-on-google-cloud.md) has every command, in order. An AI agent with `gcloud` can follow [Deploying with an agent](deploy-with-an-agent.md).
 
 In short: you create the service accounts, database, bucket and secrets, then `gcloud builds submit --config deploy/gcp/cloudbuild.yaml` builds the image, applies the migrations in a Cloud Run job and deploys it. Open the new site and it takes you to a setup page, where you name your organization, give the email address people should write to for help, and create the first account. That account is the administrator.
 
 - **Your own web address:** map a domain to the service (or put a load balancer in front) and set `APP_URL`. See [section 10 of the guide](deploy-on-google-cloud.md#10-your-own-domain-and-your-own-email-address).
 - **Lock down a new install:** a new install is claimed by whoever opens it first, normally you, seconds after the deploy. If its address will be known to others before you get there, add a `SETUP_TOKEN` secret to the service: the setup page then asks for it, and finding the URL first is not enough.
 - **Keep it up to date:** merge each release into your copy and run the build again. See [Keep it up to date](deploy-on-google-cloud.md#keep-it-up-to-date).
-- **What it costs:** Cloud SQL is the steady cost; the rest is small and billed by use. See [What it costs](deploy-on-google-cloud.md#what-it-costs).
+- **What it costs:** Neon has a free plan; the Google Cloud parts are small and billed by use. See [What it costs](deploy-on-google-cloud.md#what-it-costs).
 - **Settings:** the service reads them from its environment. See [Settings](deploy-on-google-cloud.md#settings).
 
 ## Deploy to Vercel instead
@@ -305,7 +305,7 @@ Whether a document needs an advanced or a qualified signature, and whether a giv
 
 ## Running in the EU
 
-On Google Cloud, choose an EU region in step 1 of the [deploy guide](deploy-on-google-cloud.md#1-choose-names-and-turn-on-the-services), such as `europe-west4` (Netherlands) or `europe-west3` (Frankfurt), and everything (Cloud Run, Cloud SQL, the bucket, the backup bucket) is created there. Set `RESEND_REGION=eu-west-1` before you add your domain in Settings, and accept Google's and Resend's data processing agreements. The rest of this section is for a Vercel install.
+On Google Cloud, choose an EU region in step 1 of the [deploy guide](deploy-on-google-cloud.md#1-choose-names-and-turn-on-the-services), such as `europe-west4` (Netherlands) or `europe-west3` (Frankfurt), and everything (Cloud Run, the bucket, the backup bucket, and a Neon project in an EU region) is created there. Set `RESEND_REGION=eu-west-1` before you add your domain in Settings, and accept Google's and Resend's data processing agreements. The rest of this section is for a Vercel install.
 
 By default the parts of an install run in the US. To keep signers' data in the EU:
 

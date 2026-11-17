@@ -95,7 +95,7 @@ E2E_STORAGE_DRIVER=blob BLOB_READ_WRITE_TOKEN=... npm run test:e2e
 
 ## Database
 
-SignuDoc uses Postgres as its only database and talks to it with `pg`. Any Postgres 15 or newer works, including Cloud SQL, Neon and Supabase.
+SignuDoc uses Postgres as its only database and talks to it with `pg`. Any Postgres 15 or newer works, including Neon, Cloud SQL and Supabase.
 
 The schema lives in `db/migrations` as plain SQL files. `npm run db:migrate` applies the ones that have not run yet and records them in the `signudoc_migrations` table, so it is safe to run on every deploy.
 

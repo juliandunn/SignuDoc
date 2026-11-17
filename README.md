@@ -26,11 +26,11 @@
 
 **No envelope allowance to watch.** DocuSign's Standard and Business Pro plans include 100 envelopes per user per year. SignuDoc has no limit of its own: what you can send depends on what you provision and on your email plan.
 
-**Your documents stay in your accounts.** PDFs live in a private Cloud Storage bucket and everything else in a Cloud SQL Postgres database, both in your project and in the region you choose. Nobody else hosts your agreements, and the code is yours to read, change and run.
+**Your documents stay in your accounts.** PDFs live in a private Cloud Storage bucket and everything else in a [Neon](https://neon.com) Postgres database, both in your own accounts and in the region you choose. Nobody else hosts your agreements, and the code is yours to read, change and run.
 
 **Evidence anyone can check.** Every finished PDF and its audit certificate carry a PAdES seal that PDF readers check for changes, the audit trail is hash-chained so an edited or deleted row shows, and anyone holding a copy can check it on the install's public Verify page.
 
-**Basic building blocks.** Cloud Run, Cloud SQL, Cloud Storage, Secret Manager and Cloud Scheduler: nothing exotic to learn, and a guide that lists every command. Google patches the platform, and a deploy is one `gcloud builds submit`.
+**Basic building blocks.** Cloud Run, Cloud Storage, Secret Manager and Cloud Scheduler, with Neon for Postgres: nothing exotic to learn, and a guide that lists every command. Google patches the platform, and a deploy is one `gcloud builds submit`.
 
 ## Everything it takes to get a document signed
 
@@ -108,14 +108,14 @@ DocuSign does more, and charges for it per user. SignuDoc does the everyday sign
 
 ### Price and ownership
 
-|                                  | SignuDoc                                                                         | DocuSign eSignature                                                                      |
-| -------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| **Price**                        | Free and open source; you pay Google for what runs and Resend for email          | $11 (Personal), $30 (Standard) or $45 (Business Pro) per user a month, on an annual plan |
-| **Envelopes**                    | No limit of its own                                                              | 5 a month on Personal, 100 per user a year on Standard and Business Pro                  |
-| **Where it runs**                | Your Google Cloud project, with your Cloud SQL database and Cloud Storage bucket | DocuSign's cloud                                                                         |
-| **Where data is kept**           | The region you choose, the EU included                                           | DocuSign's data centers, the EU included                                                 |
-| **Source code**                  | MIT license, on GitHub                                                           | Closed                                                                                   |
-| **Your own domain and branding** | ✅ your domain, logo and color, in every install                                 | Logo and colors from Standard                                                            |
+|                                  | SignuDoc                                                                | DocuSign eSignature                                                                      |
+| -------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Price**                        | Free and open source; you pay Google for what runs and Resend for email | $11 (Personal), $30 (Standard) or $45 (Business Pro) per user a month, on an annual plan |
+| **Envelopes**                    | No limit of its own                                                     | 5 a month on Personal, 100 per user a year on Standard and Business Pro                  |
+| **Where it runs**                | Your Google Cloud project and Neon database                             | DocuSign's cloud                                                                         |
+| **Where data is kept**           | The region you choose, the EU included                                  | DocuSign's data centers, the EU included                                                 |
+| **Source code**                  | MIT license, on GitHub                                                  | Closed                                                                                   |
+| **Your own domain and branding** | ✅ your domain, logo and color, in every install                        | Logo and colors from Standard                                                            |
 
 ### The signing loop
 
@@ -153,9 +153,9 @@ If your agreements run through Salesforce, need SMS checks or ID document checks
 
 ## What it costs
 
-SignuDoc is free. You pay Google Cloud for what your install uses, and [Resend](https://resend.com/pricing) for email (it has a free plan). There are no seats and no envelope allowance, so the cost follows your usage, not your headcount:
+SignuDoc is free. You pay Google Cloud for what your install uses, Neon for the database, and [Resend](https://resend.com/pricing) for email (it has a free plan). There are no seats and no envelope allowance, so the cost follows your usage, not your headcount:
 
-- **Cloud SQL** is the one cost that runs all day, because the database is billed for its size whether or not anyone is signing. The tier you pick sets the floor.
+- **Neon** has a free plan and charges small databases by use, and suspends an idle database.
 - **Cloud Run** is billed for the time the app is up, and scales to zero when nobody is using it.
 - **Cloud Storage, Artifact Registry, Secret Manager, Cloud Scheduler and Cloud Build** cost little at this scale.
 
@@ -169,7 +169,7 @@ For comparison, DocuSign's US list prices for annual plans in November 2026 are 
 
 You need a Google Cloud project with billing on, the `gcloud` CLI, and a [Resend](https://resend.com) API key. The full guide is [Deploy SignuDoc on Google Cloud](docs/deploy-on-google-cloud.md); in outline:
 
-1. **Create the pieces:** a service account, a Cloud SQL Postgres database, a private Cloud Storage bucket, and secrets for the database URL, the session key and your Resend key.
+1. **Create the pieces:** a service account, a Neon Postgres database, a private Cloud Storage bucket, and secrets for the database URL, the session key and your Resend key.
 2. **Create the Cloud Run service and a migration job.**
 3. **Build and deploy** from this repository: `gcloud builds submit --config deploy/gcp/cloudbuild.yaml`. It builds the image, creates the database tables and deploys.
 4. **Open your new site.** Name your organization, give the email address people should write to for help, and create the first account, which is the administrator.
@@ -196,7 +196,7 @@ Files stay on disk and emails are written to `.data/outbox` instead of being sen
 
 ## Built on Google Cloud
 
-- **Built from basic Google Cloud services.** Next.js 16 in a container on Cloud Run, Cloud SQL Postgres, private Cloud Storage, Secret Manager, a daily Cloud Scheduler call for reminders and cleanup, and Resend for email.
+- **Built from basic Google Cloud services.** Next.js 16 in a container on Cloud Run, Neon Postgres, private Cloud Storage, Secret Manager, a daily Cloud Scheduler call for reminders and cleanup, and Resend for email.
 - **Secure by default.** Private file storage with no public URLs, a strict Content Security Policy, rate limits kept in Postgres, signing links that are hashed at rest, and a setup page that only the first visitor, or the holder of a `SETUP_TOKEN`, can use.
 - **Tested.** Unit tests, database tests against a real Postgres, and a browser test that sets up a fresh install, sends a document and signs it, run on every pull request.
 

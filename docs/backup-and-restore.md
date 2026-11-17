@@ -1,10 +1,10 @@
 # Backup and restore
 
-A SignuDoc install on Google Cloud keeps its records in two places: the Cloud SQL Postgres database (accounts, envelopes, audit trails, settings) and the Cloud Storage bucket (the PDFs, sealed copies and certificates). This page covers what protects each one, how to turn on SignuDoc's own daily backup, and how to restore from it.
+A SignuDoc install on Google Cloud keeps its records in two places: the Neon Postgres database (accounts, envelopes, audit trails, settings) and the Cloud Storage bucket (the PDFs, sealed copies and certificates). This page covers what protects each one, how to turn on SignuDoc's own daily backup, and how to restore from it.
 
 ## What you have without doing anything
 
-- **Cloud SQL** takes a daily automated backup and, with the commands in the [deploy guide](deploy-on-google-cloud.md#3-database), keeps the write-ahead log for point-in-time recovery. You can restore the instance to a moment in the last days (seven by default), or clone it, from the console or `gcloud sql instances clone`. It protects against a bad change, not against losing the project: automated backups are deleted with the instance.
+- **Neon** keeps the database's history for a restore window and can restore it to a point in time, or branch from it, from the Neon console. The window is short on the free plan and longer on paid plans; see Neon's plan page for the current numbers. It protects against a bad change, not against losing the Neon project or account.
 - **Cloud Storage** keeps a deleted or overwritten file for seven days (soft delete, on by default for new buckets) and you can restore it in that time with `gcloud storage restore`. After that it is gone. You can raise the window on the bucket, or turn on object versioning.
 
 So the daily backup is worth turning on for any install whose documents matter: it puts a copy in a second project, where deleting the install does not reach it.
@@ -33,22 +33,21 @@ Each run writes a `backup_finished` line to Cloud Logging (with the counts), or 
 
 A restore goes into a **new, empty** database and bucket, never over a live install. You can then point the install at them, or deploy a new install on them.
 
-You need a computer with Node.js 24, a copy of this repository at the same version as the install (or newer), and the [Cloud SQL Auth Proxy](https://cloud.google.com/sql/docs/postgres/sql-proxy).
+You need a computer with Node.js 24, a copy of this repository at the same version as the install (or newer), and network access to Neon.
 
-1. Make a new, empty Cloud SQL database (steps 3 and 5 of the [deploy guide](deploy-on-google-cloud.md), in the project you are restoring into). Or, if the install's database still exists and only the files were lost, use `--skip-files` and skip this.
+1. Make a new, empty Neon database (a new Neon project, or a new branch with no data, [as in the deploy guide](deploy-on-google-cloud.md#3-database)) and copy its **direct** connection string. Or, if the install's database still exists and only the files were lost, use `--skip-files` and skip this.
 2. Make a new private bucket for the restored files (step 4). Or, if the install's bucket still exists and only the database was lost, use `--skip-files` and skip this.
-3. Sign in so the script can reach both buckets, and start the proxy to the new database in another terminal:
+3. Sign in so the script can reach both buckets:
 
    ```sh
    gcloud auth application-default login
-   cloud-sql-proxy "$SQL_CONNECTION"      # listens on 127.0.0.1:5432
    ```
 
 4. In the repository folder:
 
    ```sh
    npm ci
-   export DATABASE_URL="postgres://signudoc:$DB_PASSWORD@127.0.0.1:5432/signudoc?sslmode=disable"
+   export DATABASE_URL='postgres://…'     # the new, empty database (direct string)
    export GCS_BUCKET='…'                  # the new install bucket
    export BACKUP_GCS_BUCKET='…'           # the backup bucket
    npm run restore-backup -- --list       # see which backups there are
@@ -57,7 +56,7 @@ You need a computer with Node.js 24, a copy of this repository at the same versi
 
    `--backup database/<name>` restores an older one instead. The script applies the migrations, loads the database in one transaction (so a failed restore leaves nothing half done), then copies the files back to their own paths. It refuses a database that already has accounts in it, and a backup made by a newer SignuDoc than the copy you are running. If copying the files stops part way (a network error, or you stopped it), run `npm run restore-backup -- --files-only` to finish: it skips the database and every file that is already there.
 
-5. Point the install at them: put the new connection string in the `signudoc-database-url` secret as a new version, set `GCS_BUCKET` on the service, keep `BETTER_AUTH_SECRET` the same as before, and deploy. Two-step sign-in keys are encrypted with that secret, and session cookies are signed with it; if it changes, everyone is signed out, and nobody who used two-step sign-in can finish signing in until their setup is cleared (see the note on two-step sign-in in [self-hosting](self-hosting.md#sign-in-security)).
+5. Point the install at them: put the new strings in the `signudoc-database-url` (pooled) and `signudoc-database-url-direct` secrets as new versions, set `GCS_BUCKET` on the service, keep `BETTER_AUTH_SECRET` the same as before, and deploy. Two-step sign-in keys are encrypted with that secret, and session cookies are signed with it; if it changes, everyone is signed out, and nobody who used two-step sign-in can finish signing in until their setup is cleared (see the note on two-step sign-in in [self-hosting](self-hosting.md#sign-in-security)).
 6. Sign in, open a finished document, and check its audit trail and download.
 
 What a restore brings back: everything in the database at the time of the backup, and every file as of the last run. A document sent after the last backup is not in it. The hash chains in both audit trails come back exactly as they were, so they still verify.
@@ -67,5 +66,5 @@ What a restore brings back: everything in the database at the time of the backup
 - **Backup frequency:** daily, at 08:00 UTC by default (the Cloud Scheduler job's schedule).
 - **Retention:** `BACKUP_KEEP_DAYS` (30 by default) for database copies and deleted files.
 - **Location and access:** a private Cloud Storage bucket in a second project chosen by the deployer. Only the app's service account and that project's own administrators can read it.
-- **Encryption:** Cloud Storage and Cloud SQL encrypt stored data at rest by default (see Google's documentation, and customer-managed keys if you need them). The database copy holds the same data as the database, including password hashes and the encrypted two-step sign-in keys, so treat access to the backup bucket like access to the database.
+- **Encryption:** Cloud Storage and Neon encrypt stored data at rest (see Google's and Neon's security documentation). The database copy holds the same data as the database, including password hashes and the encrypted two-step sign-in keys, so treat access to the backup bucket like access to the database.
 - **Restore testing:** the procedure above, run by the deployer on a schedule they choose.

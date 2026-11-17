@@ -15,20 +15,21 @@ The person you are working for is called "the person" below.
   3. **A [Resend](https://resend.com) API key** for email. They create it in their Resend account; ask them to paste it, and put it straight into Secret Manager (step 5 of the guide). Do not write it to a file or repeat it in your messages.
   4. **The domain email should come from**, for example `acme.com`. SignuDoc suggests a `sign.` subdomain (`sign.acme.com`) so its email stays apart from the organization's own. If they have none yet, email can wait.
   5. **The organization's name**, the **support email address**, and the **administrator's name and email address**, for the setup page.
-  6. **A second project for backups**, if they want them (they should: step 9 of the guide). Do not create projects for them.
+  6. **The two Neon connection strings** (pooled and direct) from a Neon project they created. Ask them to paste each when step 5 prompts for it; never echo, log or repeat them.
+  7. **A second project for backups**, if they want them (they should: step 9 of the guide). Do not create projects for them.
 - Do one numbered section of the guide at a time, and check the result before you move on.
 
 ## Checks, by section of the guide
 
-| Section             | Check before going on                                                                                                                                                      |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Names, services  | `gcloud services list --enabled` lists the seven services.                                                                                                                 |
-| 3. Database         | `gcloud sql instances describe signudoc-db --format='value(state)'` prints `RUNNABLE`. Creating it takes several minutes; wait, do not start another one.                  |
-| 4. Bucket           | `gcloud storage buckets describe gs://$BUCKET --format='value(iamConfiguration.publicAccessPrevention)'` prints `enforced`.                                                |
-| 5. Secrets          | `gcloud secrets list` shows four secrets. Never print a secret's value.                                                                                                    |
-| 7. Build and deploy | The build ends with `SUCCESS`. If it stops at `run-migrations`, see the guide's Troubleshooting. Do not rerun it in a loop: after three failures, stop and report the log. |
-| After 7             | Open `$APP_URL`. A new install belongs to whoever opens it first, so do this straight away, and go to the setup page (`/setup`).                                           |
-| 8 and 9. Schedulers | `gcloud scheduler jobs run signudoc-retention --location=$REGION` and look for a 2xx in `gcloud scheduler jobs describe`; same for `signudoc-backup`.                      |
+| Section             | Check before going on                                                                                                                                                        |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Names, services  | `gcloud services list --enabled` lists the services.                                                                                                                         |
+| 3. Database         | The person has created the Neon project and given you both connection strings (pooled and direct). You cannot check Neon from `gcloud`; step 7's migration job is the check. |
+| 4. Bucket           | `gcloud storage buckets describe gs://$BUCKET --format='value(iamConfiguration.publicAccessPrevention)'` prints `enforced`.                                                  |
+| 5. Secrets          | `gcloud secrets list` shows four secrets. Never print a secret's value.                                                                                                      |
+| 7. Build and deploy | The build ends with `SUCCESS`. If it stops at `run-migrations`, see the guide's Troubleshooting. Do not rerun it in a loop: after three failures, stop and report the log.   |
+| After 7             | Open `$APP_URL`. A new install belongs to whoever opens it first, so do this straight away, and go to the setup page (`/setup`).                                             |
+| 8 and 9. Schedulers | `gcloud scheduler jobs run signudoc-retention --location=$REGION` and look for a 2xx in `gcloud scheduler jobs describe`; same for `signudoc-backup`.                        |
 
 ## Setting the site up
 
@@ -54,7 +55,7 @@ Then point them to the [self-hosting guide](self-hosting.md) for their own web a
 ## Rules for the agent
 
 - Never pay for, upgrade or start a trial of anything, and never enable billing, without the person's say-so.
-- Never delete a project, instance, bucket, secret or repository to "start over". Cloud SQL has deletion protection on purpose. If something is badly wrong, stop and ask.
+- Never delete a project, Neon database, bucket, secret or repository to "start over". If something is badly wrong, stop and ask.
 - Never print or copy a secret (API keys, the database URL, the password, the job secret) into a chat, a file or a message. Pipe it from one command into the next, as the guide does.
 - Never grant `allUsers` or `allAuthenticatedUsers` access to a bucket, a secret or the database. The only public thing is the Cloud Run service itself.
 - Do not widen an IAM role beyond what the guide gives, and do not turn off an organization policy. If one blocks a step, say which and ask.

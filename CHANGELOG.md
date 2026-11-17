@@ -45,8 +45,8 @@ tables and six new columns are added by the migrations that run on deploy.
 
 ### Deployment
 
-- Deploy on Google Cloud with basic services: Cloud Run, Cloud SQL for
-  Postgres, Cloud Storage, Secret Manager and Cloud Scheduler. The new guide
+- Deploy on Google Cloud with basic services: Cloud Run, Cloud Storage, Secret Manager and Cloud Scheduler, with Neon
+  staying the database. The new guide
   is `docs/deploy-on-google-cloud.md`, with a `Dockerfile` and
   `deploy/gcp/cloudbuild.yaml` that build the image, run the migrations as a
   Cloud Run job and deploy.

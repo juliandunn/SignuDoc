@@ -6,7 +6,7 @@ SignuDoc runs on a handful of basic Google Cloud services, all in one project of
 | ------------------------ | -------------------------------------------------------------- |
 | The app                  | **Cloud Run**, from a container image built by **Cloud Build** |
 | Image storage            | **Artifact Registry**                                          |
-| Postgres                 | **Cloud SQL for PostgreSQL**                                   |
+| Postgres                 | **[Neon](https://neon.com)**, outside Google Cloud             |
 | Documents (the PDFs)     | **Cloud Storage**, in a private bucket                         |
 | Passwords and keys       | **Secret Manager**                                             |
 | Daily cleanup and backup | **Cloud Scheduler**, calling the app's two internal routes     |
@@ -15,7 +15,7 @@ SignuDoc runs on a handful of basic Google Cloud services, all in one project of
 
 Email goes out through [Resend](https://resend.com), which is not part of Google Cloud: Google Cloud blocks outbound mail on port 25, and the app sends over Resend's HTTPS API.
 
-You need a Google Cloud project with billing turned on, the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install) signed in as someone who owns the project, and a Resend API key. It takes about 30 minutes, most of it waiting for Cloud SQL to be created.
+You need a Google Cloud project with billing turned on, the [`gcloud` CLI](https://cloud.google.com/sdk/docs/install) signed in as someone who owns the project, a Neon account, and a Resend API key. It takes about 20 minutes.
 
 The commands below are meant to be run in one terminal session, top to bottom: later ones use the variables set by earlier ones.
 
@@ -28,7 +28,7 @@ export SERVICE=signudoc
 
 gcloud config set project "$PROJECT_ID"
 gcloud services enable \
-  run.googleapis.com sqladmin.googleapis.com secretmanager.googleapis.com \
+  run.googleapis.com secretmanager.googleapis.com \
   artifactregistry.googleapis.com cloudbuild.googleapis.com \
   cloudscheduler.googleapis.com
 
@@ -48,10 +48,6 @@ The app runs as its own service account, which can reach only what it needs. A s
 gcloud iam service-accounts create signudoc-run --display-name="SignuDoc app"
 gcloud iam service-accounts create signudoc-build --display-name="SignuDoc build and deploy"
 
-# The app: the database.
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-  --member="serviceAccount:$RUN_SA" --role=roles/cloudsql.client
-
 # The builder: push images, deploy, run the migration job, write logs, and
 # read the source `gcloud builds submit` uploads.
 for role in roles/artifactregistry.writer roles/run.admin \
@@ -66,25 +62,18 @@ gcloud iam service-accounts add-iam-policy-binding "$RUN_SA" \
 
 ## 3. Database
 
-```bash
-gcloud sql instances create signudoc-db \
-  --database-version=POSTGRES_17 --edition=ENTERPRISE \
-  --tier=db-g1-small --region="$REGION" \
-  --storage-auto-increase \
-  --backup-start-time=03:00 --enable-point-in-time-recovery \
-  --deletion-protection
+Google Cloud has no low-cost Postgres that scales down to nothing, so SignuDoc's database stays on [Neon](https://neon.com), which has a free plan and bills small databases by use. Cloud SQL works too: the app only needs a Postgres 15+ connection string, and Cloud Run can reach Cloud SQL with `--set-cloudsql-instances` and a `?host=/cloudsql/<connection name>` URL.
 
-gcloud sql databases create signudoc --instance=signudoc-db
+1. In the [Neon console](https://console.neon.tech), create a project. Pick the region closest to your Cloud Run region (an EU region if you will [run in the EU](self-hosting.md#running-in-the-eu)), Postgres 17, and a database named `signudoc`.
+2. Open **Connect** and copy two connection strings for that database and role:
+   - the **pooled** one, whose host contains `-pooler`. The app uses it.
+   - the **direct** one (turn "Connection pooling" off). The migrations use it, because they take a session-level lock and run DDL, which a transaction-mode pooler does not handle reliably.
 
-export DB_PASSWORD=$(openssl rand -hex 24)
-gcloud sql users create signudoc --instance=signudoc-db --password="$DB_PASSWORD"
+Both end in `?sslmode=require`; leave that as it is. Keep them to hand for step 5, and do not paste them into a chat, a file in the repository or a shell history you share.
 
-export SQL_CONNECTION=$(gcloud sql instances describe signudoc-db --format='value(connectionName)')
-```
+Neon keeps the database's history for a restore window and can restore it to a point in time; the window is longer on paid plans. See [Backup and restore](backup-and-restore.md). Your Cloud Run service reaches Neon over the internet, with TLS and the password in the connection string: there is no network rule to maintain.
 
-This takes several minutes. The instance has a public address but no network is allowed to reach it: Cloud Run connects through the Cloud SQL connection (a Unix socket) using its service account, with no network rule to maintain. Daily backups and point-in-time recovery are on, and deletion protection stops an accidental `gcloud sql instances delete`.
-
-`db-g1-small` is a small shared-core instance, enough for an organization's own use. Change `--tier` for more; `db-f1-micro` is cheaper still and suits a trial. The app keeps up to 10 connections per running instance, and the service below allows 3 instances, so stay within your tier's connection limit if you raise `--max-instances`.
+The app keeps up to 10 connections per running instance and the service below allows 3 instances, which the pooled endpoint absorbs.
 
 ## 4. File bucket
 
@@ -102,10 +91,13 @@ The bucket is private and stays private: no document has a public address, and e
 ## 5. Secrets
 
 ```bash
-# The app's connection string. Cloud SQL's socket is named in `host`.
-printf 'postgres://signudoc:%s@localhost/signudoc?host=/cloudsql/%s' \
-  "$DB_PASSWORD" "$SQL_CONNECTION" \
-  | gcloud secrets create signudoc-database-url --data-file=-
+# The pooled connection string from step 3 (typed without echo, not on the command line).
+read -rs -p 'Pooled Neon URL: ' NEON_POOLED_URL; echo
+printf '%s' "$NEON_POOLED_URL" | gcloud secrets create signudoc-database-url --data-file=-
+# The direct one, used only by the migration job.
+read -rs -p 'Direct Neon URL: ' NEON_DIRECT_URL; echo
+printf '%s' "$NEON_DIRECT_URL" | gcloud secrets create signudoc-database-url-direct --data-file=-
+unset NEON_POOLED_URL NEON_DIRECT_URL
 
 # Signs sessions. Keep it: changing it signs everyone out.
 openssl rand -hex 32 | tr -d '\n' | gcloud secrets create signudoc-auth-secret --data-file=-
@@ -116,7 +108,7 @@ openssl rand -hex 32 | tr -d '\n' | gcloud secrets create signudoc-job-secret --
 # Your Resend API key (re_...).
 printf '%s' 're_xxxxxxxx' | gcloud secrets create signudoc-resend-key --data-file=-
 
-for secret in signudoc-database-url signudoc-auth-secret \
+for secret in signudoc-database-url signudoc-database-url-direct signudoc-auth-secret \
               signudoc-job-secret signudoc-resend-key; do
   gcloud secrets add-iam-policy-binding "$secret" \
     --member="serviceAccount:$RUN_SA" --role=roles/secretmanager.secretAccessor
@@ -141,14 +133,12 @@ gcloud run deploy "$SERVICE" --region="$REGION" --image="$PLACEHOLDER" \
   --memory=1Gi --cpu=1 --concurrency=40 --timeout=300 \
   --min-instances=0 --max-instances=3 \
   --no-cpu-throttling \
-  --set-cloudsql-instances="$SQL_CONNECTION" \
   --set-env-vars="APP_URL=$APP_URL,GCS_BUCKET=$BUCKET" \
   --set-secrets="DATABASE_URL=signudoc-database-url:latest,BETTER_AUTH_SECRET=signudoc-auth-secret:latest,RETENTION_JOB_SECRET=signudoc-job-secret:latest,RESEND_API_KEY=signudoc-resend-key:latest"
 
 gcloud run jobs create signudoc-migrate --region="$REGION" --image="$PLACEHOLDER" \
   --service-account="$RUN_SA" \
-  --set-cloudsql-instances="$SQL_CONNECTION" \
-  --set-secrets="DATABASE_URL=signudoc-database-url:latest" \
+  --set-secrets="DATABASE_URL=signudoc-database-url:latest,DATABASE_URL_UNPOOLED=signudoc-database-url-direct:latest" \
   --command=node --args=db/migrate.mjs \
   --max-retries=0 --task-timeout=600
 ```
@@ -264,16 +254,16 @@ To deploy on every push instead, connect your repository in Cloud Build (Trigger
 
 The service reads its settings from its environment. Change one with `gcloud run services update "$SERVICE" --region="$REGION" --update-env-vars=NAME=value` (or `--update-secrets=NAME=secret:latest` for a secret). The full list is in [`.env.example`](../.env.example) and under [Optional settings](self-hosting.md#optional-settings); these are the ones that matter on Google Cloud:
 
-| Variable               | What it does                                                                                                     |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`         | The Cloud SQL connection, in the form made in step 5.                                                            |
-| `GCS_BUCKET`           | The file bucket. Setting it selects Cloud Storage for documents.                                                 |
-| `APP_URL`              | The site's public HTTPS address.                                                                                 |
-| `BETTER_AUTH_SECRET`   | Signs sessions.                                                                                                  |
-| `RETENTION_JOB_SECRET` | Closes the cleanup and backup routes to everyone who does not send it as a bearer token.                         |
-| `BACKUP_GCS_BUCKET`    | The backup bucket. Off until set. `BACKUP_KEEP_DAYS` changes how long copies are kept.                           |
-| `TRUSTED_PROXY_HOPS`   | `1` when a Google Cloud load balancer is in front of the service. Leave unset for `run.app` and domain mappings. |
-| `SETUP_TOKEN`          | A secret the setup page asks for.                                                                                |
+| Variable               | What it does                                                                                                         |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`         | The pooled Neon connection string from step 5. `DATABASE_URL_UNPOOLED` is the direct one, used by the migration job. |
+| `GCS_BUCKET`           | The file bucket. Setting it selects Cloud Storage for documents.                                                     |
+| `APP_URL`              | The site's public HTTPS address.                                                                                     |
+| `BETTER_AUTH_SECRET`   | Signs sessions.                                                                                                      |
+| `RETENTION_JOB_SECRET` | Closes the cleanup and backup routes to everyone who does not send it as a bearer token.                             |
+| `BACKUP_GCS_BUCKET`    | The backup bucket. Off until set. `BACKUP_KEEP_DAYS` changes how long copies are kept.                               |
+| `TRUSTED_PROXY_HOPS`   | `1` when a Google Cloud load balancer is in front of the service. Leave unset for `run.app` and domain mappings.     |
+| `SETUP_TOKEN`          | A secret the setup page asks for.                                                                                    |
 
 Vercel-only settings (`BOTID`, `CRON_SECRET`, `BLOB_*`) do nothing here.
 
@@ -281,7 +271,7 @@ Vercel-only settings (`BOTID`, `CRON_SECRET`, `BLOB_*`) do nothing here.
 
 There are no seats and no envelope allowance. You pay Google for what runs, and Resend for email:
 
-- **Cloud SQL** is the one cost that runs all day. It is billed for the instance's size and storage whether or not anyone is signing, so the tier chosen in step 3 sets your floor.
+- **Neon** has a free plan, and its paid plans charge for what the database uses; see [Neon's pricing](https://neon.com/pricing). A database that nobody is using suspends itself, and the first request after that waits a moment for it to wake.
 - **Cloud Run** is billed for the time an instance is up. With `--min-instances=0` it is off when nobody is using the site, and the first request after a quiet spell waits a second or two for it to start. Set `--min-instances=1` to avoid that, at a steady cost.
 - **Cloud Storage, Artifact Registry, Secret Manager, Cloud Scheduler and Cloud Build** cost little at this scale, and each has a free tier.
 - **Resend** has a free plan; see [Resend's pricing](https://resend.com/pricing).
@@ -292,7 +282,7 @@ Prices change and differ by region: use the [Google Cloud pricing calculator](ht
 
 **The site shows an error right after the first deploy.** Open the logs: `gcloud run services logs read "$SERVICE" --region="$REGION" --limit=50`. A message naming a variable means a secret or setting from step 5 or 6 is missing.
 
-**The build stops at `run-migrations`.** Read the job's log: `gcloud run jobs executions list --job=signudoc-migrate --region="$REGION"`, then `gcloud logging read` for that execution, or open it in the console. The usual cause is the `DATABASE_URL` secret: check that it holds the instance's connection name and that the build account can run the job.
+**The build stops at `run-migrations`.** Read the job's log: `gcloud run jobs executions list --job=signudoc-migrate --region="$REGION"`, then `gcloud logging read` for that execution, or open it in the console. The usual cause is the `signudoc-database-url-direct` secret: check that it is the direct (not `-pooler`) Neon string, that the role can create tables, and that the build account can run the job.
 
 **`gcloud builds submit` is refused or cannot write logs.** The build account is missing a role from step 2, or your organization requires a logs bucket: the config already sends logs to Cloud Logging only (`CLOUD_LOGGING_ONLY`).
 
