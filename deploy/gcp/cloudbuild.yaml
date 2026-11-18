@@ -7,7 +7,7 @@
 # or point a Cloud Build trigger at this file to deploy on every push.
 # docs/deploy-on-google-cloud.md creates everything this refers to.
 substitutions:
-  _REGION: us-central1
+  _REGION: us-west1
   _REPOSITORY: signudoc
   _SERVICE: signudoc
   _MIGRATE_JOB: signudoc-migrate
