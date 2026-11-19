@@ -2,7 +2,7 @@
 # revision. Run it from the repository root:
 #
 #   gcloud builds submit --config deploy/gcp/cloudbuild.yaml \
-#     --substitutions _REGION=us-central1
+#     --substitutions _REGION=us-west1
 #
 # or point a Cloud Build trigger at this file to deploy on every push.
 # docs/deploy-on-google-cloud.md creates everything this refers to.

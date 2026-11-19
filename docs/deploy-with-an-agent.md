@@ -11,7 +11,7 @@ The person you are working for is called "the person" below.
 - Run `gcloud auth list` and `gcloud config list`. The CLI must already be signed in as the person, or as a service account they gave you. If it is not, stop and ask them to run `gcloud auth login` themselves. Never type a password, a one-time code or a passkey prompt for them unless they give you that job.
 - Ask the person for these before you begin, so you are not stopped half way:
   1. **The Google Cloud project ID** to deploy into, which must already have billing turned on. Do not create a project or link a billing account yourself.
-  2. **The region.** If they will sign agreements in the EU, choose an EU region such as `europe-west4`. Everything uses the one region.
+  2. **The region.** Use `us-west1` (Oregon) unless they will sign agreements in the EU; then choose an EU region such as `europe-west4`. Everything uses the one region.
   3. **A [Resend](https://resend.com) API key** for email. They create it in their Resend account; ask them to paste it, and put it straight into Secret Manager (step 5 of the guide). Do not write it to a file or repeat it in your messages.
   4. **The domain email should come from**, for example `acme.com`. SignuDoc suggests a `sign.` subdomain (`sign.acme.com`) so its email stays apart from the organization's own. If they have none yet, email can wait.
   5. **The organization's name**, the **support email address**, and the **administrator's name and email address**, for the setup page.

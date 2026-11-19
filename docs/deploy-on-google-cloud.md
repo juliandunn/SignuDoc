@@ -23,7 +23,7 @@ The commands below are meant to be run in one terminal session, top to bottom: l
 
 ```bash
 export PROJECT_ID=your-project-id
-export REGION=us-central1        # europe-west4, europe-west1 and so on for the EU
+export REGION=us-west1           # europe-west4, europe-west1 and so on for the EU
 export SERVICE=signudoc
 
 gcloud config set project "$PROJECT_ID"
@@ -64,7 +64,7 @@ gcloud iam service-accounts add-iam-policy-binding "$RUN_SA" \
 
 Google Cloud has no low-cost Postgres that scales down to nothing, so SignuDoc's database stays on [Neon](https://neon.com), which has a free plan and bills small databases by use. Cloud SQL works too: the app only needs a Postgres 15+ connection string, and Cloud Run can reach Cloud SQL with `--set-cloudsql-instances` and a `?host=/cloudsql/<connection name>` URL.
 
-1. In the [Neon console](https://console.neon.tech), create a project. Pick the region closest to your Cloud Run region (an EU region if you will [run in the EU](self-hosting.md#running-in-the-eu)), Postgres 17, and a database named `signudoc`.
+1. In the [Neon console](https://console.neon.tech), create a project. Pick the region closest to your Cloud Run region (AWS US West 2, Oregon, for `us-west1`; an EU region if you will [run in the EU](self-hosting.md#running-in-the-eu)), Postgres 17, and a database named `signudoc`.
 2. Open **Connect** and copy two connection strings for that database and role:
    - the **pooled** one, whose host contains `-pooler`. The app uses it.
    - the **direct** one (turn "Connection pooling" off). The migrations use it, because they take a session-level lock and run DDL, which a transaction-mode pooler does not handle reliably.
@@ -92,10 +92,10 @@ The bucket is private and stays private: no document has a public address, and e
 
 ```bash
 # The pooled connection string from step 3 (typed without echo, not on the command line).
-read -rs -p 'Pooled Neon URL: ' NEON_POOLED_URL; echo
+printf 'Pooled Neon URL: '; read -rs NEON_POOLED_URL; echo
 printf '%s' "$NEON_POOLED_URL" | gcloud secrets create signudoc-database-url --data-file=-
 # The direct one, used only by the migration job.
-read -rs -p 'Direct Neon URL: ' NEON_DIRECT_URL; echo
+printf 'Direct Neon URL: '; read -rs NEON_DIRECT_URL; echo
 printf '%s' "$NEON_DIRECT_URL" | gcloud secrets create signudoc-database-url-direct --data-file=-
 unset NEON_POOLED_URL NEON_DIRECT_URL
 
