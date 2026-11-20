@@ -21,15 +21,15 @@ The person you are working for is called "the person" below.
 
 ## Checks, by section of the guide
 
-| Section             | Check before going on                                                                                                                                                        |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Names, services  | `gcloud services list --enabled` lists the services.                                                                                                                         |
-| 3. Database         | The person has created the Neon project and given you both connection strings (pooled and direct). You cannot check Neon from `gcloud`; step 7's migration job is the check. |
-| 4. Bucket           | `gcloud storage buckets describe gs://$BUCKET --format='value(iamConfiguration.publicAccessPrevention)'` prints `enforced`.                                                  |
-| 5. Secrets          | `gcloud secrets list` shows four secrets. Never print a secret's value.                                                                                                      |
-| 7. Build and deploy | The build ends with `SUCCESS`. If it stops at `run-migrations`, see the guide's Troubleshooting. Do not rerun it in a loop: after three failures, stop and report the log.   |
-| After 7             | Open `$APP_URL`. A new install belongs to whoever opens it first, so do this straight away, and go to the setup page (`/setup`).                                             |
-| 8 and 9. Schedulers | `gcloud scheduler jobs run signudoc-retention --location=$REGION` and look for a 2xx in `gcloud scheduler jobs describe`; same for `signudoc-backup`.                        |
+| Section             | Check before going on                                                                                                                                                         |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Names, services  | `gcloud services list --enabled` lists the services.                                                                                                                          |
+| 3. Database         | The person has created the Neon project and given you both connection strings (pooled and direct). You cannot check Neon from `gcloud`; step 7's migration job is the check.  |
+| 4. Bucket           | `gcloud storage buckets describe gs://$BUCKET --format='value(iamConfiguration.publicAccessPrevention)'` prints `enforced`.                                                   |
+| 5. Secrets          | `gcloud secrets list` shows four secrets. Never print a secret's value.                                                                                                       |
+| 7. Build and deploy | The build ends with `SUCCESS`. If it stops at `run-migrations`, see the guide's Troubleshooting. Do not rerun it in a loop: after three failures, stop and report the log.    |
+| After 7             | Open `$APP_URL`. A new install belongs to whoever opens it first, so do this straight away, and go to the setup page (`/setup`).                                              |
+| 8 and 9. Schedulers | `gcloud scheduler jobs run signudoc-retention --location=$REGION` and look for a 2xx in `gcloud scheduler jobs describe`; same for `signudoc-webhooks` and `signudoc-backup`. |
 
 ## Setting the site up
 

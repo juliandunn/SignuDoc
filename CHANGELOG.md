@@ -56,6 +56,9 @@ tables and six new columns are added by the migrations that run on deploy.
 - On Cloud Run, the visitor's address for rate limits is the one Google
   appended to `x-forwarded-for`, which a visitor cannot forge.
   `TRUSTED_PROXY_HOPS=1` is for a load balancer in front.
+- The Google Cloud guide schedules the webhook retries
+  (`/api/internal/webhooks`) as a daily Cloud Scheduler job, as `vercel.json`
+  does on Vercel.
 - The README's Deploy to Vercel button and its test are gone from this
   branch; the Vercel steps remain in `docs/self-hosting.md`.
 

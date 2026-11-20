@@ -9,7 +9,7 @@ SignuDoc runs on a handful of basic Google Cloud services, all in one project of
 | Postgres                 | **[Neon](https://neon.com)**, outside Google Cloud             |
 | Documents (the PDFs)     | **Cloud Storage**, in a private bucket                         |
 | Passwords and keys       | **Secret Manager**                                             |
-| Daily cleanup and backup | **Cloud Scheduler**, calling the app's two internal routes     |
+| Daily cleanup and backup | **Cloud Scheduler**, calling the app's internal routes         |
 | Schema changes           | A **Cloud Run job** that runs the migrations on every deploy   |
 | Logs                     | **Cloud Logging**, which collects what the app prints          |
 
@@ -166,7 +166,7 @@ When it finishes, open `$APP_URL`. It takes you to a setup page, where you name 
 
 ## 8. Schedule the daily jobs
 
-The cleanup (reminders, expired drafts and links, deadlines) and the backup are plain HTTPS routes. Cloud Scheduler calls them once a day with the secret from step 5, and the routes turn away anyone else.
+The cleanup (reminders, expired drafts and links, deadlines), the webhook retries and the backup are plain HTTPS routes. Cloud Scheduler calls them once a day with the secret from step 5, and the routes turn away anyone else.
 
 ```bash
 export JOB_SECRET=$(gcloud secrets versions access latest --secret=signudoc-job-secret)
@@ -176,7 +176,15 @@ gcloud scheduler jobs create http signudoc-retention \
   --uri="$APP_URL/api/internal/retention" --http-method=GET \
   --headers="Authorization=Bearer $JOB_SECRET" \
   --attempt-deadline=300s
+
+gcloud scheduler jobs create http signudoc-webhooks \
+  --location="$REGION" --schedule="30 9 * * *" --time-zone="Etc/UTC" \
+  --uri="$APP_URL/api/internal/webhooks" --http-method=GET \
+  --headers="Authorization=Bearer $JOB_SECRET" \
+  --attempt-deadline=300s
 ```
+
+A webhook is sent as soon as the change behind it happens; the `signudoc-webhooks` job only retries deliveries that failed and are due again. You can run it more often (`--schedule="0 * * * *"` for hourly), but each run wakes an instance, which then stays up, and is billed, for about 15 minutes, so a short interval keeps the service running most of the day.
 
 The secret is stored in the job's configuration, so anyone who can view Scheduler jobs in the project can read it. If that matters, leave `signudoc-job-secret` out of the service in step 6: without a secret the route looks after itself (it runs at most once an hour and tells the caller nothing), as described under [Daily cleanup](self-hosting.md#daily-cleanup).
 
